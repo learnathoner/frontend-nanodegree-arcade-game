@@ -69,6 +69,25 @@ var Game = {
   }
 };
 
+// Character Selection Screen
+var characterSelect = {
+  drawScreen : function() {
+    var rectHeight = 250;
+
+    ctx.font = "30px Arial";
+    ctx.fillText("Choose Your Character:", 5, 30);
+    // ctx.fillRect(0, 40, canvasWidth, rectHeight);
+
+    for (var i = 0; i < 4; i++) {
+      var currentChar = new Image();
+      currentChar.onload = function() {
+
+      }
+      currentChar.src = charArray[i];
+      console.log(currentChar);
+    }
+  }
+};
 
 /*
 *
