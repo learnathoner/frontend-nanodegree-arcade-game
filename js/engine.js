@@ -82,6 +82,7 @@ var Engine = (function(global) {
     function update(dt) {
         updateEntities(dt);
         checkCollisions();
+        // Game.displayScore();
     }
 
     /* This is called by the update function and loops through all of the
@@ -138,6 +139,7 @@ var Engine = (function(global) {
         }
 
         renderEntities();
+        Game.render();
     }
 
     /* This function is called by the render function and is called on each game
@@ -173,7 +175,11 @@ var Engine = (function(global) {
         'images/grass-block.png',
         'images/enemy-bug.png',
         'images/enemy-bug-crop.png',
-        'images/char-boy.png'
+        'images/char-boy.png',
+        'images/char-cat-girl.png',
+        'images/char-horn-girl.png',
+        'images/char-pink-girl.png',
+        'images/char-princess-girl.png',
     ]);
     Resources.onReady(init);
 

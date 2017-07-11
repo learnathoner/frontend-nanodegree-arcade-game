@@ -1,50 +1,99 @@
-/*
-TODO: Is there a way to import or use these from engine, even
-though app.js is loaded after?
-global.canvas = canvas?
-*/
-// var cWidth = 505,
-//     cHeight = 606;
 
-// Returns random int in range (start, end), saves retyping
-function randomNum(start, end) {
-  return Math.floor((Math.random() * end) + start);
-}
+/*
+*
+* Global variables
+*
+*/
 
 var canvasWidth = 505,
     canvasHeight = 606,
     imageWidth = 101,
     imageHeight = 171,
-    imageOffsetTop = 50,
+    canvasOffsetTop = 50,
     imageOffsetBottom = 38,
     rowHeight = 83,
     playerFeet = 32,
-    playerSidePadding = 17,
+    playerSidePadding = 33,
+    arbitraryPlayerOffsetBottom = 55,
     enemyPadding = 2;
 
-// Enemies our player must avoid
-var Enemy = function(row) {
-    // Variables applied to each of our instances go here,
-    // we've provided one for you to get started
+// Game Sounds
+var startSound = new Audio('sounds/start.mp3'),
+    moveSound = new Audio('sounds/player-move.mp3'),
+    impactSound = new Audio('sounds/impact.mp3'),
+    winSound = new Audio('sounds/win.wav'),
+    loseSound = new Audio('sounds/lose.wav');
 
-    // The imag001e/sprite for our enemies, this uses
-    // a helper we've provided to easily load images
+// Array of potential Character Icons
+var charArray = [
+  'images/char-boy.png',
+  'images/char-cat-girl.png',
+  'images/char-horn-girl.png',
+  'images/char-pink-girl.png',
+  'images/char-princess-girl.png',
+];
+
+/*
+*
+* Utility Functions
+*
+*/
+
+// Generates Random Int in Range (start,end)
+function randomNum(start, end) {
+  return Math.floor((Math.random() * end) + start);
+}
+
+/*
+*
+* Game Management Functions
+*
+*/
+
+var Game = {
+  clearTop: function() {
+    ctx.clearRect(0, 0, canvasWidth, 32);
+  },
+  displayScore: function() {
+    ctx.font = "30px Arial";
+    ctx.fillText("Score = " + player.score, 5, 30);
+  },
+  displayLives: function() {
+    ctx.font = "30px Arial";
+    ctx.fillText("Lives = " + player.lives, canvasWidth - 125, 30);
+  },
+  render: function() {
+    this.clearTop();
+    this.displayScore();
+    this.displayLives();
+  }
+};
+
+
+/*
+*
+* Enemy Functions
+*
+*/
+
+var Enemy = function(row) {
     this.sprite = 'images/enemy-bug-crop.png';
-    this.x = -imageWidth;
-    // Calls function to generate Y value
+    // Sets row for each enemy, top stone-block path is 1
     this.enemyRow = row + 1;
-    this.setY(this.enemyRow);
-    // Calls function to generate speed
+    // Starts enemy off canvas
+    this.setEnemyX();
+    this.setEnemyY(this.enemyRow);
     this.generateSpeed();
 };
 
-// Sets enemy 'Y': Chooses random road row 1-3, puts enemy in middle
-Enemy.prototype.setY = function(row) {
-  // var rowNum = randomNum(1,3);
-  // // Sets Y to (row 1-3 * the row height) + the top padding
-  // var enemyY = 50 + (rowNum * rowHeight);
-  // this.y = enemyY;
-  this.y = ((row) * rowHeight) + 50;
+// Set enemy X, position enemy off canvas
+Enemy.prototype.setEnemyX = function() {
+  this.x = -imageWidth;
+};
+
+// Sets Enemy Y to the middle of their row
+Enemy.prototype.setEnemyY = function(row) {
+  this.y = canvasOffsetTop + ((row) * rowHeight);
 };
 
 // Sets speed between 100 / 300
@@ -53,13 +102,12 @@ Enemy.prototype.generateSpeed = function() {
 };
 
 // Update the enemy's position, required method for game
-// Parameter: dt, a time delta between ticks
 Enemy.prototype.update = function(dt) {
   // Sets x to speed * dt
   this.x += this.speed * dt;
-  // When enemy reaches end of row, sets new speed and row
+  // When enemy reaches end, reset position and change speed
   if (this.x > canvasWidth + imageWidth) {
-    this.x = -imageWidth;
+    this.setEnemyX();
     this.generateSpeed();
   }
 };
@@ -69,76 +117,96 @@ Enemy.prototype.render = function() {
     ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
 };
 
-// Now write your own player class
-// This class requires an update(), render() and
-// a handleInput() method.
+/*
+*
+* Player Functions
+*
+*/
+
 var Player = function() {
   this.sprite = 'images/char-boy.png';
-  // this.x = (canvasWidth - imageWidth) / 2;
-  // // TODO: Completely arbitrary y, better way?
-  // this.y = canvasHeight - imageHeight - 55;
+  // Sets Lives = 3, Score = 0, and starting position
+  this.playerReset();
+};
 
-  this.lives = 3;
-  // reset sets the Y and X to default locations
-  this.reset();
+// Sets X and Y to initial position, bottom center, and row = 5
+Player.prototype.playerSetPosition = function() {
   this.playerRow = 5;
+  this.x = (canvasWidth - imageWidth) / 2;
+  this.y = (canvasHeight - imageHeight) - arbitraryPlayerOffsetBottom;
+};
+
+// Sets X and Y to initial position, bottom center, and row = 5
+Player.prototype.playerReset = function() {
+  this.lives = 3;
+  this.score = 0;
+  this.playerSetPosition();
+};
+
+Player.prototype.checkBoundaries = function(key) {
+  // TODO: Are these variables being created every time funciton run?
+  // Maybe better to set them as global?
+  var maxY = (canvasHeight - imageHeight) - arbitraryPlayerOffsetBottom;
+  var minX = imageWidth;
+  var maxX = canvasWidth - imageWidth;
+
+  if ((key === 'down') && (this.y < maxY)) {
+    return true;
+  }
+  if ((key === 'left') && (this.x >= minX)) {
+    return true;
+  }
+  if ((key === 'right') && (this.x < maxX)) {
+    return true;
+  }
+  if (key === 'up') {
+      return true;
+    }
+  return false;
+};
+
+// Handles input and moves player
+Player.prototype.handleInput = function(key) {
+  // Check boundaries to make sure move allowed
+  if (this.checkBoundaries(key)) {
+    moveSound.load();
+    moveSound.play();
+    if (key === 'up') {
+      if (this.y > rowHeight) {
+        this.y -= rowHeight;
+        this.playerRow--;
+      } else {
+        this.score++;
+        winSound.play();
+        this.playerSetPosition();
+      }
+    }
+    if (key === 'down') {
+      this.y += rowHeight;
+      this.playerRow++;
+    }
+    if (key === 'left') {
+      this.x -= imageWidth;
+    }
+    if (key === 'right') {
+        this.x += imageWidth;
+    }
+  }
+};
+
+// TODO: Any use for update?
+Player.prototype.update = function() {
 };
 
 Player.prototype.render = function() {
   ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
-  // ctx.strokeRect(this.x, this.y, imageWidth, imageHeight);
 };
 
-Player.prototype.reset = function() {
-  this.x = (canvasWidth - imageWidth) / 2;
-  // TODO: Completely arbitrary y, better way?
-  this.y = canvasHeight - imageHeight - 55;
-};
-
-Player.prototype.update = function() {
-};
-
-Player.prototype.handleInput = function(key) {
-  // TODO: Adjust dimensions
-  if (key === 'up') {
-    if (this.y > 83) {
-      this.y -= 83;
-      this.playerRow--;
-    } else {
-      player.reset();
-    }
-  }
-  if (key === 'down') {
-    if (this.y < canvasHeight - imageHeight - 55) {
-      this.y += 83;
-      this.playerRow++;
-    }
-  }
-  if (key === 'left') {
-    if (this.x > 99) {
-      this.x -= 101;
-    }
-  }
-  if (key === 'right') {
-    if (this.x < 505-101) {
-      this.x += 101;
-    }
-  }
-};
-
-// Now instantiate your objects.
-// Place all enemy objects in an array called allEnemies
-// Place the player object in a variable called player
-
-var allEnemies = [];
-
-(function() {
-  for (var i = 0; i < 3; i++) {
-    allEnemies.push(new Enemy(i));
-  }
-})();
-
-var player = new Player();
+/*
+*
+* Collision Detection
+*
+*/
 
 function checkCollisions() {
   // Subtracts 1, because allEnemy array starts at 0, but the first enemy
@@ -155,14 +223,35 @@ function checkCollisions() {
     // If front or back corner of player is inside enemy rectangle
     if ((playerStart > enemyStart) && (playerStart < enemyEnd) ||
         (playerEnd > enemyStart) && (playerEnd < enemyEnd)) {
-      ctx.strokeText("collision", 0, 20);
-      player.reset();
-      player.playerRow = 5;
-      return true;
+      impactSound.play();
+      if (player.lives > 0) {
+        player.lives--;
+        player.playerSetPosition();
+        // return true;
+      } else {
+        loseSound.play();
+        player.playerReset();
+      }
     }
-    return false;
+    // return false;
   }
 }
+
+/*
+*
+* Instantiate Objects
+*
+*/
+
+var allEnemies = [];
+
+(function() {
+  for (var i = 0; i < 3; i++) {
+    allEnemies.push(new Enemy(i));
+  }
+})();
+
+var player = new Player();
 
 // This listens for key presses and sends the keys to your
 // Player.handleInput() method. You don't need to modify this.
