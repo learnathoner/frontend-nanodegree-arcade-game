@@ -9,6 +9,7 @@ var canvasWidth = 505,
     canvasHeight = 606,
     imageWidth = 101,
     imageHeight = 171,
+    centerImage = (canvasHeight - imageHeight) / 2,
     canvasOffsetTop = 50,
     imageOffsetBottom = 38,
     rowHeight = 83,
@@ -23,6 +24,8 @@ var startSound = new Audio('sounds/start.mp3'),
     impactSound = new Audio('sounds/impact.mp3'),
     winSound = new Audio('sounds/win.wav'),
     loseSound = new Audio('sounds/lose.wav');
+
+moveSound.volume = 0.5;
 
 // Array of potential Character Icons
 var charArray = [
@@ -50,43 +53,75 @@ function randomNum(start, end) {
 *
 */
 
-var Game = {
-  clearTop: function() {
-    ctx.clearRect(0, 0, canvasWidth, 32);
-  },
-  displayScore: function() {
-    ctx.font = "30px Arial";
-    ctx.fillText("Score = " + player.score, 5, 30);
-  },
-  displayLives: function() {
-    ctx.font = "30px Arial";
-    ctx.fillText("Lives = " + player.lives, canvasWidth - 125, 30);
-  },
-  render: function() {
-    this.clearTop();
-    this.displayScore();
-    this.displayLives();
-  }
+var Game = {};
+
+Game.gameStatus = 0;
+
+Game.clearTop = function() {
+  ctx.clearRect(0, 0, canvasWidth, 32);
 };
 
-// Character Selection Screen
+Game.displayScore = function() {
+  ctx.font = "30px Arial";
+  ctx.fillText("Score = " + player.score, 5, 30);
+};
+
+Game.displayLives = function() {
+  ctx.font = "30px Arial";
+  ctx.fillText("Lives = " + player.lives, canvasWidth - 125, 30);
+};
+
+Game.render = function() {
+  this.clearTop();
+  this.displayScore();
+  this.displayLives();
+};
+
+/*
+*
+* Character Selection Screen
+*
+*/
+
 var characterSelect = {
-  drawScreen : function() {
-    var rectHeight = 250;
+  boxX: 0,
+  boxY: centerImage,
+  startGame: false
+};
 
-    ctx.font = "30px Arial";
-    ctx.fillText("Choose Your Character:", 5, 30);
-    // ctx.fillRect(0, 40, canvasWidth, rectHeight);
-
-    for (var i = 0; i < 4; i++) {
-      var currentChar = new Image();
-      currentChar.onload = function() {
-
-      }
-      currentChar.src = charArray[i];
-      console.log(currentChar);
-    }
+characterSelect.drawScreen = function() {
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+  // Creates a background
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  // Draws the 5 characters to the screen
+  for (var i = 0; i < 5; i++) {
+    var currentChar = Resources.get(charArray[i]);
+    ctx.drawImage(currentChar, i * imageWidth, centerImage);
   }
+  this.boundBox();
+};
+
+characterSelect.boundBox = function() {
+  ctx.strokeRect(this.boxX, this.boxY, imageWidth, imageHeight);
+};
+
+characterSelect.handleInput = function(key) {
+  // if (this.checkBoundaries(key)) {
+    moveSound.load();
+    moveSound.play();
+    if (key === 'enter') {
+      this.startGame = true;
+      Game.gameStatus = 1;
+    }
+    if (key === 'left') {
+      this.boxX -= imageWidth;
+    }
+    if (key === 'right') {
+        this.boxX += imageWidth;
+    }
+    this.drawScreen();
+  // }
 };
 
 /*
@@ -275,12 +310,23 @@ var player = new Player();
 // This listens for key presses and sends the keys to your
 // Player.handleInput() method. You don't need to modify this.
 document.addEventListener('keyup', function(e) {
-    var allowedKeys = {
+  var allowedKeys = {};
+
+  if (Game.gameStatus === 0) {
+    allowedKeys = {
+        37: 'left',
+        39: 'right',
+        13: 'enter'
+    };
+    characterSelect.handleInput(allowedKeys[e.keyCode]);
+  }
+  if (Game.gameStatus === 1) {
+    allowedKeys = {
         37: 'left',
         38: 'up',
         39: 'right',
         40: 'down'
     };
-
     player.handleInput(allowedKeys[e.keyCode]);
+  }
 });

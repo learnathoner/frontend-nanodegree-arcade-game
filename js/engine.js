@@ -46,8 +46,10 @@ var Engine = (function(global) {
         /* Call our update/render functions, pass along the time delta to
          * our update function since it may be used for smooth animation.
          */
-        update(dt);
-        render();
+         if (characterSelect.startGame === true) {
+          update(dt);
+          render();
+        }
 
         /* Set our lastTime variable which is used to determine the time delta
          * for the next time this function is called.
@@ -66,10 +68,8 @@ var Engine = (function(global) {
      */
     function init() {
         reset();
-        if (lastTime = 10,0000) {
-          lastTime = Date.now();
-          main();
-        }
+        lastTime = Date.now();
+        main();
     }
 
     /* This function is called by main (our game loop) and itself calls all
@@ -82,6 +82,7 @@ var Engine = (function(global) {
      * on the entities themselves within your app.js file).
      */
     function update(dt) {
+        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
         updateEntities(dt);
         checkCollisions();
         // Game.displayScore();
