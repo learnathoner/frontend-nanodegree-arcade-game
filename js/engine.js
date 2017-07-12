@@ -28,6 +28,7 @@ var Engine = (function(global) {
 
     canvas.width = 505;
     canvas.height = 606;
+    canvas.setAttribute("id", "c");
     doc.body.appendChild(canvas);
 
     /* This function serves as the kickoff point for the game loop itself
@@ -51,6 +52,7 @@ var Engine = (function(global) {
           render();
         }
 
+
         /* Set our lastTime variable which is used to determine the time delta
          * for the next time this function is called.
          */
@@ -67,9 +69,9 @@ var Engine = (function(global) {
      * game loop.
      */
     function init() {
-        reset();
-        lastTime = Date.now();
-        main();
+      reset();
+      lastTime = Date.now();
+      main();
     }
 
     /* This function is called by main (our game loop) and itself calls all
@@ -166,7 +168,7 @@ var Engine = (function(global) {
      */
     function reset() {
         // noop
-      characterSelect.drawScreen();
+      characterSelect.drawCharScreen();
     }
 
     /* Go ahead and load all of the images we know we're going to need to

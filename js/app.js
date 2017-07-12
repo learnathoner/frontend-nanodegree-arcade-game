@@ -1,3 +1,10 @@
+/*
+TODO:
+- Find way to control border over character Selection
+  - Play around with using image CSS / select image on enter
+- Once image selected, submit and start game
+- Clean code
+*/
 
 /*
 *
@@ -56,6 +63,7 @@ function randomNum(start, end) {
 var Game = {};
 
 Game.gameStatus = 0;
+Game.character = '';
 
 Game.clearTop = function() {
   ctx.clearRect(0, 0, canvasWidth, 32);
@@ -86,42 +94,72 @@ Game.render = function() {
 var characterSelect = {
   boxX: 0,
   boxY: centerImage,
+  selectedChar: 0,
   startGame: false
 };
 
-characterSelect.drawScreen = function() {
+
+characterSelect.drawCharScreen = function() {
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-  // Creates a background
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
   // Draws the 5 characters to the screen
-  for (var i = 0; i < 5; i++) {
+  for (i = 0; i < 5; i++) {
     var currentChar = Resources.get(charArray[i]);
+
     ctx.drawImage(currentChar, i * imageWidth, centerImage);
   }
-  this.boundBox();
+  console.log("completed");
+  this.selectedCharBorder();
 };
 
-characterSelect.boundBox = function() {
-  ctx.strokeRect(this.boxX, this.boxY, imageWidth, imageHeight);
+characterSelect.selectedCharBorder = function() {
+  var borderX = this.selectedChar * imageWidth;
+  ctx.lineWidth = 2;
+  if (this.selectedChar == 0) {
+    borderX += 1;
+  }
+  if (this.selectedChar == 4) {
+    borderX -= 1;
+  }
+  ctx.strokeRect(borderX, centerImage, imageWidth, imageHeight);
+};
+
+characterSelect.checkBoundaries = function(key) {
+  if (key === 'left') {
+    if (this.selectedChar > 0) {
+      return true;
+    }
+  }
+  if (key === 'right') {
+    if (this.selectedChar < 4) {
+      return true;
+    }
+  }
+  return false;
 };
 
 characterSelect.handleInput = function(key) {
-  // if (this.checkBoundaries(key)) {
-    moveSound.load();
-    moveSound.play();
-    if (key === 'enter') {
-      this.startGame = true;
-      Game.gameStatus = 1;
-    }
+  if (key === 'enter') {
+    Game.character = charArray[this.selectedChar];
+    this.startGame = true;
+    Game.gameStatus = 1;
+    player.sprite = Game.character;
+  }
+  if (this.checkBoundaries(key)) {
     if (key === 'left') {
-      this.boxX -= imageWidth;
+      this.selectedChar -= 1;
+      this.drawCharScreen();
+      moveSound.load();
+      moveSound.play();
     }
     if (key === 'right') {
-        this.boxX += imageWidth;
+      this.selectedChar += 1;
+      this.drawCharScreen();
+      moveSound.load();
+      moveSound.play();
     }
-    this.drawScreen();
-  // }
+  }
 };
 
 /*
@@ -178,7 +216,7 @@ Enemy.prototype.render = function() {
 */
 
 var Player = function() {
-  this.sprite = 'images/char-boy.png';
+  this.sprite = Game.character;
   // Sets Lives = 3, Score = 0, and starting position
   this.playerReset();
 };
