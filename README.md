@@ -1,6 +1,33 @@
-frontend-nanodegree-arcade-game
-===============================
+<h1><center><b><span style="color:green"> FroggerJS </span></b> </center></h1>
 
-Students should use this [rubric](https://review.udacity.com/#!/projects/2696458597/rubric) for self-checking their submission. Make sure the functions you write are **object-oriented** - either class functions (like Player and Enemy) or class prototype functions such as Enemy.prototype.checkCollisions, and that the keyword 'this' is used appropriately within your class and class prototype functions to refer to the object the function is called upon. Also be sure that the **readme.md** file is updated with your instructions on both how to 1. Run and 2. Play your arcade game.
+<center><h3><span style="color:green"> By: Learnathoner </span><h3></center>
 
-For detailed instructions on how to get started, check out this [guide](https://docs.google.com/document/d/1v01aScPjSWCCWQLIpFqvg3-vXLH2e8_SZQKC8jNO0Dc/pub?embedded=true).
+![alt text](images/Screenshot.png "Frogger in-game footage")
+
+
+## **<span style="color:blue">Gameplay Guide</span>**
+
+### Welcome Screen
+
+This is a welcome screen. Don't worry, it goes away.
+
+### Character Selection Screen
+
+Choose your character here! Use the **Left and Right** arrow keys to change characters, select the one you like by pressing **Enter.**
+
+### Gameplay
+
+* Use the **Up, Down, Left, and Right** arrow keys to move.
+* Try to avoid the critters and make it to the other side!
+* At a certain level, gems are introduced. Get them.
+* Rocks are... rocks. You don't go through them, unlike the magical ladybugs.
+
+### Lose Screen
+
+You're bound to get here eventually. You've got two options:
+* **Try Again** - Starts over with the same character.
+* **Restart** - Brings you back to the character selection screen.
+
+## **<span style="color:orange">Code Guide</span>**
+
+For an in-depth guide to the code and how it works, take a look at my [Code Guide](codeREADME.md).

@@ -1,51 +1,78 @@
-/*
-TODO:
-- Find way to control border over character Selection
-  - Play around with using image CSS / select image on enter
-- Once image selected, submit and start game
-- Clean code
-*/
+/*jshint esversion: 6 */
 
 /*
 *
-* Global variables
+* 1. Storage Objects - Hold sizes, audio, and image files used
 *
 */
 
-var canvasWidth = 505,
-    canvasHeight = 606,
-    imageWidth = 101,
-    imageHeight = 171,
-    centerImage = (canvasHeight - imageHeight) / 2,
-    canvasOffsetTop = 50,
-    imageOffsetBottom = 38,
-    rowHeight = 83,
-    playerFeet = 32,
-    playerSidePadding = 33,
-    arbitraryPlayerOffsetBottom = 55,
-    enemyPadding = 2;
+/****** Sizes Used ******/
 
-// Game Sounds
-var startSound = new Audio('sounds/start.mp3'),
-    moveSound = new Audio('sounds/player-move.mp3'),
-    impactSound = new Audio('sounds/impact.mp3'),
-    winSound = new Audio('sounds/win.wav'),
-    loseSound = new Audio('sounds/lose.wav');
+const sizes = {
+  canvasWidth: 505,
+  canvasHeight: 606,
+  rowHeight: 83,
+  imageWidth: 101,
+  imageHeight: 171,
+  halfImageWidth: function() {return this.imageWidth * 0.5;},
+  // Offset for where first drawn row starts on canvas
+  canvasOffsetTop: 50,
+  imageOffsetBottom: 38,
+  playerFeet: 32,
+  // Padding between player icon and image container sides
+  playerSidePadding: 33,
+  arbitraryPlayerOffsetBottom: 55,
+  enemyPadding: 2,
 
-moveSound.volume = 0.5;
+  // Y value to center image vertically in canvas
+  centerImage(height = this.imageHeight) {
+    return (this.canvasHeight - height) / 2;
+  },
 
-// Array of potential Character Icons
-var charArray = [
-  'images/char-boy.png',
-  'images/char-cat-girl.png',
-  'images/char-horn-girl.png',
-  'images/char-pink-girl.png',
-  'images/char-princess-girl.png',
+  // X value to center image or rect horizontally in canvas
+  centerRectHoriz(width = this.imageWidth) {
+    return ((this.canvasWidth - width) / 2);
+  }
+};
+
+/****** Game Sounds ******/
+
+const sounds = {
+  opening: new Audio('sounds/opening.wav'),
+  charSelect: new Audio('sounds/char-selection.mp3'),
+  startLevel: new Audio('sounds/start.mp3'),
+  gameLoop: new Audio('sounds/game-loop.wav'),
+  gem: new Audio('sounds/gem.wav'),
+  optionSelect: new Audio('sounds/option-select.wav'),
+  move: new Audio('sounds/player-move.mp3'),
+  impact: new Audio('sounds/impact.mp3'),
+  win: new Audio('sounds/win.wav'),
+  lose: new Audio('sounds/lose.wav')
+};
+
+sounds.move.volume = 0.5;
+
+/****** Characters ******/
+
+// Creates character dictionaries with name and image
+const charBoy = {name: 'Boy', sprite: 'images/char-boy.png'},
+      charCatGirl = {name: 'Cat Girl', sprite: 'images/char-cat-girl.png'},
+      charHornGirl = {name: 'Horn Girl', sprite: 'images/char-horn-girl.png'},
+      charPinkGirl = {name: 'Pink Girl', sprite: 'images/char-pink-girl.png'},
+      charPrincess = {name: 'Pam', sprite: 'images/char-princess-girl.png'};
+
+// Stores All Characters in Array
+const characters = [
+  charBoy,
+  charCatGirl,
+  charHornGirl,
+  charPinkGirl,
+  charPrincess
 ];
 
 /*
 *
-* Utility Functions
+* 2. Utility Functions
 *
 */
 
@@ -54,317 +81,958 @@ function randomNum(start, end) {
   return Math.floor((Math.random() * end) + start);
 }
 
-/*
-*
-* Game Management Functions
-*
-*/
+// Clears screen
+function clearScreen() {
+  ctx.clearRect(0, 0, sizes.canvasWidth, sizes.canvasHeight);
+}
 
-var Game = {};
+// Clear screen, fill canvas with color
+function fillCanvas(color = "white") {
+  clearScreen();
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, sizes.canvasWidth, sizes.canvasHeight);
+}
 
-Game.gameStatus = 0;
-Game.character = '';
+// Like fillCanvas, but doesn't clear screen first
+function transparentLayer(color = 'rgba(0, 0, 0, .25)') {
+  ctx.fillStyle = color;
+  ctx.fillRect(0, sizes.canvasOffsetTop, sizes.canvasWidth, sizes.canvasHeight - 70);
+}
 
-Game.clearTop = function() {
-  ctx.clearRect(0, 0, canvasWidth, 32);
-};
-
-Game.displayScore = function() {
-  ctx.font = "30px Arial";
-  ctx.fillText("Score = " + player.score, 5, 30);
-};
-
-Game.displayLives = function() {
-  ctx.font = "30px Arial";
-  ctx.fillText("Lives = " + player.lives, canvasWidth - 125, 30);
-};
-
-Game.render = function() {
-  this.clearTop();
-  this.displayScore();
-  this.displayLives();
-};
+// Draws rectangle in Center of screen. Used for messages
+function drawCenterRect(color = 'rgba(0, 0, 0, 0.5)', height = 200, width = sizes.canvasWidth) {
+  let rectX = sizes.centerRectHoriz(width);
+  let rectY = sizes.centerImage(height);
+  ctx.fillStyle = color;
+  ctx.fillRect(rectX, rectY, width, height);
+}
 
 /*
 *
-* Character Selection Screen
+* 3. Text Object and animations
 *
 */
 
-var characterSelect = {
-  boxX: 0,
-  boxY: centerImage,
-  selectedChar: 0,
-  startGame: false
-};
-
-
-characterSelect.drawCharScreen = function() {
-  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-  // Draws the 5 characters to the screen
-  for (i = 0; i < 5; i++) {
-    var currentChar = Resources.get(charArray[i]);
-
-    ctx.drawImage(currentChar, i * imageWidth, centerImage);
+// Object created to store text and animation functions
+class TextObject {
+  constructor(text = '',
+              fontStyle = "20px Arial",
+              styleType = "fill", style = "black",
+              x = 0, y = 30) {
+    this.text = text;
+    this.fontStyle = fontStyle;
+    this.styleType = styleType;
+    this.style = style;
+    this.x = x;
+    this.y = y;
+    this.alpha = 0;
+    this.animationDone = false;
   }
-  console.log("completed");
-  this.selectedCharBorder();
-};
 
-characterSelect.selectedCharBorder = function() {
-  var borderX = this.selectedChar * imageWidth;
-  ctx.lineWidth = 2;
-  if (this.selectedChar == 0) {
-    borderX += 1;
+  // Sets context for measuring text width
+  createContext() {
+    ctx[`${this.styleType}Style`] = this.style;
+    ctx.font = `${this.fontStyle}`;
   }
-  if (this.selectedChar == 4) {
-    borderX -= 1;
+
+  // Returns text width
+  textWidth() {
+    this.createContext();
+    return ctx.measureText(this.text).width;
   }
-  ctx.strokeRect(borderX, centerImage, imageWidth, imageHeight);
-};
 
-characterSelect.checkBoundaries = function(key) {
-  if (key === 'left') {
-    if (this.selectedChar > 0) {
-      return true;
-    }
+  // Returns the x value to center-align text
+  centerText() {
+    const textWidth = this.textWidth();
+    return (sizes.canvasWidth - textWidth) / 2;
   }
-  if (key === 'right') {
-    if (this.selectedChar < 4) {
-      return true;
-    }
+
+  // Vertically center text, takes height in px
+  centerVertical(textHeight) {
+    return ((sizes.canvasHeight - textHeight) / 2) + (textHeight);
   }
-  return false;
-};
 
-characterSelect.handleInput = function(key) {
-  if (key === 'enter') {
-    Game.character = charArray[this.selectedChar];
-    this.startGame = true;
-    Game.gameStatus = 1;
-    player.sprite = Game.character;
+  // Draws text to the canvas
+  drawText() {
+    ctx[`${this.styleType}Style`] = this.style;
+    ctx.font = `${this.fontStyle}`;
+    ctx[`${this.styleType}Text`](this.text, this.x, this.y);
   }
-  if (this.checkBoundaries(key)) {
-    if (key === 'left') {
-      this.selectedChar -= 1;
-      this.drawCharScreen();
-      moveSound.load();
-      moveSound.play();
-    }
-    if (key === 'right') {
-      this.selectedChar += 1;
-      this.drawCharScreen();
-      moveSound.load();
-      moveSound.play();
-    }
-  }
-};
 
-/*
-*
-* Enemy Functions
-*
-*/
+  /****** Text Effects ******/
 
-var Enemy = function(row) {
-    this.sprite = 'images/enemy-bug-crop.png';
-    // Sets row for each enemy, top stone-block path is 1
-    this.enemyRow = row + 1;
-    // Starts enemy off canvas
-    this.setEnemyX();
-    this.setEnemyY(this.enemyRow);
-    this.generateSpeed();
-};
+  // Floats text Right to the center of canvas
+  floatRight(dt, speed = 100) {
+      const center = this.centerText();
+      this.drawText();
 
-// Set enemy X, position enemy off canvas
-Enemy.prototype.setEnemyX = function() {
-  this.x = -imageWidth;
-};
-
-// Sets Enemy Y to the middle of their row
-Enemy.prototype.setEnemyY = function(row) {
-  this.y = canvasOffsetTop + ((row) * rowHeight);
-};
-
-// Sets speed between 100 / 300
-Enemy.prototype.generateSpeed = function() {
-  this.speed = randomNum(100, 300);
-};
-
-// Update the enemy's position, required method for game
-Enemy.prototype.update = function(dt) {
-  // Sets x to speed * dt
-  this.x += this.speed * dt;
-  // When enemy reaches end, reset position and change speed
-  if (this.x > canvasWidth + imageWidth) {
-    this.setEnemyX();
-    this.generateSpeed();
-  }
-};
-
-// Draw the enemy on the screen, required method for game
-Enemy.prototype.render = function() {
-    ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
-};
-
-/*
-*
-* Player Functions
-*
-*/
-
-var Player = function() {
-  this.sprite = Game.character;
-  // Sets Lives = 3, Score = 0, and starting position
-  this.playerReset();
-};
-
-// Sets X and Y to initial position, bottom center, and row = 5
-Player.prototype.playerSetPosition = function() {
-  this.playerRow = 5;
-  this.x = (canvasWidth - imageWidth) / 2;
-  this.y = (canvasHeight - imageHeight) - arbitraryPlayerOffsetBottom;
-};
-
-// Sets X and Y to initial position, bottom center, and row = 5
-Player.prototype.playerReset = function() {
-  this.lives = 3;
-  this.score = 0;
-  this.playerSetPosition();
-};
-
-Player.prototype.checkBoundaries = function(key) {
-  // TODO: Are these variables being created every time funciton run?
-  // Maybe better to set them as global?
-  var maxY = (canvasHeight - imageHeight) - arbitraryPlayerOffsetBottom;
-  var minX = imageWidth;
-  var maxX = canvasWidth - imageWidth;
-
-  if ((key === 'down') && (this.y < maxY)) {
-    return true;
-  }
-  if ((key === 'left') && (this.x >= minX)) {
-    return true;
-  }
-  if ((key === 'right') && (this.x < maxX)) {
-    return true;
-  }
-  if (key === 'up') {
-      return true;
-    }
-  return false;
-};
-
-// Handles input and moves player
-Player.prototype.handleInput = function(key) {
-  // Check boundaries to make sure move allowed
-  if (this.checkBoundaries(key)) {
-    moveSound.load();
-    moveSound.play();
-    if (key === 'up') {
-      if (this.y > rowHeight) {
-        this.y -= rowHeight;
-        this.playerRow--;
+      if (this.x < center) {
+        this.x += dt * speed;
       } else {
-        this.score++;
-        winSound.play();
-        this.playerSetPosition();
+        this.animationDone = true;
+      }
+  }
+
+  // Floats text Left to the center of canvas
+  floatLeft(dt, speed = 100) {
+      const center = this.centerText();
+      this.drawText();
+
+      if (this.x > center) {
+        this.x -= speed * dt;
+      } else {
+        this.animationDone = true;
+      }
+  }
+
+  // Fades text into the canvas, takes red, green, and blue values for color
+  fadeIn(dt, speed = 100, red = 0, green = 0, blue = 0) {
+    this.style = `rgba(${red}, ${green}, ${blue}, ${this.alpha})`;
+    this.x = this.centerText();
+    this.drawText();
+
+    if (this.alpha < 1) {
+      this.alpha += speed * dt;
+    } else {
+      this.animationDone = true;
+    }
+  }
+
+  // Creates a text Shadow
+  createShadow(color = "black", offsetX = 5, offsetY = 5, blur = 5) {
+    ctx.shadowColor = color;
+    ctx.shadowOffsetX = offsetX;
+    ctx.shadowOffsetY = offsetY;
+    ctx.shadowBlur = blur;
+  }
+
+  // Sets animation status to false
+  reset() {
+    this.animationDone = false;
+  }
+}
+
+/*
+*
+* 4. Game Management Functions
+*
+*/
+
+// game object - holds status, character, level, and waiting
+const game = {
+  gameStatus: 'displayWelcomeScreen',
+  character: '',
+  level: 1,
+  // Indicates whether a request to change status has been made using timeout
+  waiting: false
+};
+
+// change game status to nextStatus in x seconds
+game.changeStatus = function(nextStatus, seconds) {
+  // Alerts that a status change request is in progress
+  game.waiting = true;
+
+  setTimeout(function() {
+      game.gameStatus = nextStatus;
+      game.waiting = false;
+    }, seconds * 1000);
+};
+
+// Clears rocks and gems
+game.resetObjects = function() {
+  rocks = [];
+  gems = [];
+};
+
+// Upon level completion, updates score and sets next level configuration
+game.nextLevel = function() {
+  player.score += 100;
+  sounds.win.play();
+  this.level += 1;
+
+  // Configurations for each level
+  switch (this.level) {
+    case 2:
+      allEnemies.push(new Enemy(4));
+      break;
+    case 3:
+      gems.push(new Gem('green', 2, 2));
+      gems.push(new Gem('green', 2, 4));
+      gems.push(new Gem('green', 4, 3));
+      break;
+    case 4:
+      this.resetObjects();
+      rocks.push(new Rock(1, 3));
+      rocks.push(new Rock(4, 2));
+      rocks.push(new Rock(4, 4));
+      gems.push(new Gem('orange', 1, 5));
+      gems.push(new Gem('green', 3, 2));
+      gems.push(new Gem('green', 3, 4));
+      break;
+    case 5:
+      this.resetObjects();
+      rocks.push(new Rock(1, 1));
+      rocks.push(new Rock(1, 2));
+      rocks.push(new Rock(1, 4));
+      rocks.push(new Rock(1, 5));
+      rocks.push(new Rock(3, 1));
+      rocks.push(new Rock(3, 3));
+      rocks.push(new Rock(3, 5));
+      gems.push(new Gem('orange', 2, 1));
+      gems.push(new Gem('blue', 2, 5));
+      gems.push(new Gem('green', 4, 2));
+      gems.push(new Gem('green', 4, 4));
+      break;
+    case 6:
+      this.resetObjects();
+      rocks.push(new Rock(1, 3));
+      rocks.push(new Rock(2, 3));
+      rocks.push(new Rock(4, 1));
+      rocks.push(new Rock(4, 2));
+      rocks.push(new Rock(4, 4));
+      rocks.push(new Rock(4, 5));
+      gems.push(new Gem('orange', 1, 1));
+      gems.push(new Gem('blue', 2, 5));
+  }
+
+  // After configuring level, resets enemies and shows level screen
+  Enemy.reset();
+  game.gameStatus = 'displayLevel';
+};
+
+// Resets game to starting settings
+game.reset = function() {
+
+  // Removes fourth row enemy if present
+  if (this.level > 1) {
+    allEnemies.pop();
+  }
+
+  this.level = 1;
+  this.waiting = false;
+  // TODO: fix welcomemsg reset
+  welcomeScreen.welcomeMessage.reset();
+  player.reset();
+  Enemy.reset();
+  this.resetObjects();
+};
+
+/*
+*
+* 5. Screens
+*
+*/
+
+/****** Welcome Screen ******/
+
+// Shows Welcome message on game start and restart
+var welcomeScreen = {
+  soundPlayed: false,
+  // Text objects display on welcome screen
+  welcomeMessage: new TextObject("Welcome To",
+                                "50px ShadowsIL",
+                                "fill", "blue",
+                                10, 100),
+  froggerJS: new TextObject("FroggerJS",
+                                "bold 100px Indie_Flower",
+                                "fill", "green",
+                                600, 200),
+  welcomeCredits: new TextObject("By: Learnathoner",
+                                "40px Arial",
+                                "fill", "green",
+                                0, 300),
+
+  // Draws welcome screen
+  drawWelcomeScreen(dt) {
+
+    // Ensures sound only plays once during the screen
+    if (!this.soundPlayed) {
+      sounds.opening.play();
+      this.soundPlayed = true;
+    }
+
+    fillCanvas('white');
+    this.welcomeMessage.floatRight(dt);
+    this.froggerJS.floatLeft(dt, 200);
+    this.welcomeCredits.fadeIn(dt, 0.5);
+
+    // If all text animations are done, waits 1 second then changes game status
+    // to Char selection screen
+    if ((this.welcomeMessage.animationDone) &&
+        (this.froggerJS.animationDone) &&
+        (this.welcomeCredits.animationDone)) {
+      if (!game.waiting) {
+        game.changeStatus('displayCharSelection', 1);
       }
     }
-    if (key === 'down') {
-      this.y += rowHeight;
-      this.playerRow++;
+  }
+};
+
+/****** Character Selection Screen ******/
+
+const characterSelect = {
+  // Position of where to draw selection border box
+  boxX: 0,
+  boxY: sizes.centerImage(),
+  // Index and name of currently selected char
+  selectedCharIndex: 0,
+  selectedCharName: 'Boy',
+  // Message and Characted Name text objects
+  chooseChar: new TextObject("Choose Your Character:",
+                              "50px ShadowsIL",
+                              "fill", "blue",
+                              30, 125),
+  charName: new TextObject("Character",
+                            "50px ShadowsIL",
+                            "fill", "blue",
+                            30, 160),
+
+  // Draws character selection Screen
+  drawCharScreen() {
+    // Creates background
+    fillCanvas();
+    // Draws 'Choose your char' message
+    this.chooseChar.drawText();
+    this.drawCharBorder();
+
+    // Draws the 5 characters to the screen from characters array
+    for (const [index, character] of characters.entries()) {
+      // Fetches sprite image
+      var currentChar = Resources.get(character.sprite);
+      // Draws image
+      ctx.drawImage(currentChar, index * sizes.imageWidth, sizes.centerImage());
     }
+  },
+
+  // Draws border around current character selection
+  drawCharBorder() {
+    // Border starts on char number * image width
+    var borderX = this.selectedCharIndex * sizes.imageWidth;
+
+    // Moves border on the canvas side edges
+    if (this.selectedCharIndex === 0) {
+      borderX += 1;
+    }
+    if (this.selectedCharIndex === 4) {
+      borderX -= 1;
+    }
+
+    // Draws border rectangle, calls fn to write name underneath
+    ctx.fillStyle = "red";
+    ctx.fillRect(borderX, sizes.centerImage(), sizes.imageWidth, sizes.imageHeight);
+    ctx.strokeStyle = "yellow";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(borderX, sizes.centerImage(), sizes.imageWidth, sizes.imageHeight);
+    this.writeCharName(borderX);
+  },
+
+  // Writes char name under border
+  writeCharName(borderX) {
+    // Text = selected char's name
+    this.charName.text = this.selectedCharName;
+    // Arrow function that returns X value to center name under char
+    let centerBottomName = () => borderX + sizes.halfImageWidth() - (this.charName.textWidth() * 0.5);
+
+    // Char name stylings
+    switch (this.selectedCharName) {
+      case 'Boy':
+          this.charName.style = 'blue';
+          break;
+      case 'Cat Girl':
+          this.charName.style = 'pink';
+          break;
+      case 'Horn Girl':
+          this.charName.style = 'black';
+          break;
+      case 'Pink Girl':
+          this.charName.style = 'purple';
+          break;
+      case 'Pam':
+          this.charName.style = 'gold';
+          break;
+    }
+    // Y value placed under the border
+    this.charName.y = sizes.centerImage() + sizes.imageHeight + 50;
+    // X value aligns name centered under char
+    this.charName.x = centerBottomName();
+    this.charName.drawText();
+  },
+
+  // Checks to see whether selection move right / left allowed
+  checkBoundaries(key) {
     if (key === 'left') {
-      this.x -= imageWidth;
+      if (this.selectedCharIndex > 0) {
+        return true;
+      }
     }
     if (key === 'right') {
-        this.x += imageWidth;
+      if (this.selectedCharIndex < 4) {
+        return true;
+      }
+    }
+    return false;
+  },
+
+  // Initializes game when player selected and enter pushed
+  confirmCharSelection() {
+    game.gameStatus = 'displayLevel';
+    game.character = characters[this.selectedCharIndex].sprite;
+    player.sprite = game.character;
+    clearScreen();
+  },
+
+  // Handles input on character selection screen
+  handleInput(key) {
+    if (key === 'enter') {
+      this.confirmCharSelection();
+    }
+    if (this.checkBoundaries(key)) {
+      if (key === 'left') {
+        this.selectedCharIndex -= 1;
+      }
+      if (key === 'right') {
+        this.selectedCharIndex += 1;
+      }
+      // Plays move sound, changes current char name, redraws selection screen
+      sounds.charSelect.load();
+      sounds.charSelect.play();
+      this.selectedCharName = characters[this.selectedCharIndex].name;
+      this.drawCharScreen();
     }
   }
 };
 
-// TODO: Any use for update?
-Player.prototype.update = function() {
+/****** Center Display Screen ******/
+
+class CenterDisplay {
+  constructor(type) {
+    this.centerText = new TextObject();
+    this.type = type;
+    this.soundPlayed = false;
+    }
+
+  displayCenterText() {
+    let positionTop = 30,
+        spacingBottom = 30;
+    transparentLayer();
+
+    if (!this.soundPlayed) {
+      sounds.startLevel.play();
+      this.soundPlayed = true;
+    }
+
+    switch (this.type) {
+      case 'lives':
+        this.centerText.fontStyle = "50px ShadowsIL";
+        this.centerText.style = "#C52715";
+        this.centerText.text = `Lives Remaining: ${player.lives}`;
+        drawCenterRect('rgba(0, 255, 0, .75)');
+        break;
+      case 'level':
+        this.centerText.fontStyle = "50px ShadowsIL";
+        this.centerText.style = "yellow";
+        this.centerText.text = `Current Level: ${game.level}`;
+        drawCenterRect('rgba(0, 0, 255, .75)');
+        break;
+    }
+
+    // Writes lives or level remaining
+    this.centerText.x = this.centerText.centerText();
+    this.centerText.y = this.centerText.centerVertical(50) - positionTop;
+    this.centerText.drawText();
+
+    // On 3rd Level screen, tells player about gems
+    if ((game.level === 3) && (this.type === 'level')) {
+      this.centerText.text = "BONUS: Collect All The Gems!";
+      this.centerText.fontStyle = "30px ShadowsIL";
+      this.centerText.x = this.centerText.centerText();
+      this.centerText.y += spacingBottom + 10;
+      this.centerText.drawText();
+    }
+
+    // Writes Press any Key to Continue
+    this.centerText.text = "Press Any Key to Continue";
+    this.centerText.fontStyle = "20px ShadowsIL";
+    this.centerText.x = this.centerText.centerText();
+    this.centerText.y += spacingBottom;
+    this.centerText.drawText();
+
+  }
+
+  handleInput(e) {
+    this.soundPlayed = false;
+    sounds.startLevel.pause();
+    sounds.startLevel.currentTime = 0;
+    game.gameStatus = 'playGame';
+  }
+}
+
+const displayLivesRemaining = new CenterDisplay('lives');
+const displayLevel = new CenterDisplay('level');
+
+/****** Lose Screen ******/
+
+const loseScreen = {
+  selectedOption: 1,
+  optionHeight: 30,
+  loseMessage: new TextObject("You Lose!",
+                              "50px ShadowsIL",
+                              "fill", "blue"),
+  tryAgain: new TextObject("Try Again",
+                              "30px ShadowsIL",
+                              "fill", "green"),
+  restart: new TextObject("Restart",
+                              "30px ShadowsIL",
+                              "fill", "green"),
+
+  drawLoseScreen() {
+    const tryAgainWidthHalf = this.tryAgain.textWidth() * 0.5;
+    const restartWidthHalf = this.restart.textWidth() * 0.5;
+    const padding = 25;
+    const loseMessageY = this.loseMessage.centerVertical(50) - 25;
+    const optionMarginTop = 60;
+    const optionsY = loseMessageY + optionMarginTop;
+
+    transparentLayer('rgba(255, 0, 0, 0.5)');
+    drawCenterRect('rgba(255, 0, 0, 0.9)', 300);
+    this.loseMessage.x = this.loseMessage.centerText();
+    this.loseMessage.y = loseMessageY;
+    this.tryAgain.x = this.tryAgain.centerText() - tryAgainWidthHalf - padding;
+    this.tryAgain.y = optionsY;
+    this.restart.x = this.restart.centerText() + restartWidthHalf + padding;
+    this.restart.y = optionsY;
+
+    this.optionBorder();
+    this.loseMessage.drawText();
+    this.tryAgain.drawText();
+    this.restart.drawText();
+
+  },
+
+  // Creates border around selected option
+  optionBorder() {
+    let x = 1,
+        width = 2,
+        padding = 10,
+        height = this.optionHeight + (padding * 2),
+        y = this.restart.y - this.optionHeight - padding;
+
+    ctx.strokeStyle = "yellow";
+    ctx.lineWidth = 2;
+
+    if (this.selectedOption === 1) {
+      x = this.tryAgain.x - padding;
+      width = this.tryAgain.textWidth() + (padding * 2);
+    } else if (this.selectedOption === 2) {
+      x = this.restart.x - padding;
+      width = this.restart.textWidth() + (padding * 2);
+    }
+
+    ctx.fillStyle = "black";
+    ctx.fillRect(x, y, width, height);
+    ctx.strokeRect(x, y, width, height);
+  },
+
+  handleInput(key) {
+    if ((key === 'left') && (this.selectedOption === 2)) {
+      sounds.optionSelect.load();
+      sounds.optionSelect.play();
+      this.selectedOption -= 1;
+    } else if ((key === 'right') && (this.selectedOption === 1)) {
+      sounds.optionSelect.load();
+      sounds.optionSelect.play();
+      this.selectedOption += 1;
+    }
+    if (key === 'enter') {
+      game.reset();
+      if (this.selectedOption === 1) {
+        game.reset();
+        game.gameStatus = 'displayLevel';
+      } else if (this.selectedOption === 2) {
+        game.reset();
+        game.gameStatus = 'displayWelcomeScreen';
+      }
+    }
+  }
 };
 
-Player.prototype.render = function() {
-  ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
+/****** Topbar *****/
+
+// Draws topbar with score and lives
+const topBar = {
+  barHeight: 32,
+  scoreX: 5,
+  livesX: sizes.canvasWidth - 125,
+  textY: 30,
+  // Clears the top before rendering
+  clearTop() {
+    ctx.clearRect(0, 0, sizes.canvasWidth, this.barHeight);
+  },
+
+  // User regular text instead of TextObject for score and lives since they
+  // cannot be used until player initialized
+  displayScore() {
+    ctx.font = "30px Arial";
+    ctx.fillStyle = "yellow";
+    ctx.fillText("Score = " + player.score, this.scoreX, this.textY);
+  },
+
+  displayLives() {
+    ctx.font = "30px Arial";
+    ctx.fillStyle = "yellow";
+    ctx.fillText("Lives = " + player.lives, this.livesX, this.textY);
+  },
+
+  render() {
+    this.clearTop();
+    this.displayScore();
+    this.displayLives();
+  }
 };
 
 /*
 *
-* Collision Detection
+* 6. Game Components
+*
+*/
+
+function checkObjectCollision(object, playerRow, playerCol) {
+  if ((playerCol === object.col) && (playerRow === object.row)) {
+    return true;
+    }
+  return false;
+}
+
+/****** Rock Generator *****/
+
+class Rock {
+  constructor(row, column) {
+    this.sprite = 'images/Rock.png';
+    this.row = row;
+    this.col = column;
+    // sets X and Y values based on col/row that start at 1
+    this.x = (this.col - 1) * sizes.imageWidth;
+    this.y = sizes.canvasOffsetTop + ((this.row - 1) * sizes.rowHeight);
+  }
+
+  render() {
+    ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
+  }
+}
+
+/****** Gems *******/
+class Gem {
+  constructor(color, row, col) {
+    this.color = color;
+
+    switch (color) {
+      case 'green':
+        this.sprite = 'images/gem-green.png';
+        this.score = 10;
+        break;
+      case 'blue':
+        this.sprite = 'images/gem-blue.png';
+        this.score = 25;
+        break;
+      case 'orange':
+        this.sprite = 'images/gem-orange.png';
+        this.score = 50;
+        break;
+      }
+
+    this.row = row;
+    this.col = col;
+    // sets X and Y values based on col/row that start at 1
+    this.x = (this.col - 1) * sizes.imageWidth;
+    this.y = sizes.canvasOffsetTop + ((this.row - 1) * sizes.rowHeight);
+  }
+
+  render() {
+    ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
+  }
+}
+
+/****** Enemy Functions *****/
+
+class Enemy {
+  constructor(row) {
+    this.sprite = 'images/enemy-bug-crop.png';
+    // Sets row for each enemy, top stone-block path is 1
+    this.row = row;
+    this.minSpeed = 100;
+    this.maxSpeed = 300;
+    // Set X, Y, and Speed
+    this.setEnemyX();
+    this.setEnemyY();
+    this.generateSpeed();
+  }
+
+  setEnemyX() {
+    this.x = -sizes.imageWidth;
+  }
+
+  setEnemyY() {
+    this.y = sizes.canvasOffsetTop + ((this.row) * sizes.rowHeight);
+  }
+
+  generateSpeed() {
+    this.speed = randomNum(this.minSpeed, this.maxSpeed);
+  }
+
+  update(dt) {
+    // Sets x to speed * dt
+    this.x += this.speed * dt;
+    // When enemy reaches end, reset position and change speed
+    if (this.x > sizes.canvasWidth + sizes.imageWidth) {
+      this.setEnemyX();
+      this.generateSpeed();
+    }
+  }
+
+  static reset() {
+    for (const enemy of allEnemies) {
+      enemy.setEnemyX();
+    }
+  }
+
+  render() {
+    ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
+  }
+}
+
+/****** Player Functions *****/
+
+class Player {
+  constructor() {
+    this.sprite = game.character;
+    // Sets Lives = 3, Score = 0, and starting position
+    this.reset();
+  }
+
+  setPosition() {
+    this.row = 5;
+    this.col = 3;
+    this.x = (sizes.canvasWidth - sizes.imageWidth) / 2;
+    this.y = (sizes.canvasHeight - sizes.imageHeight) - sizes.arbitraryPlayerOffsetBottom;
+  }
+
+  reset() {
+    this.lives = 3;
+    this.score = 0;
+    this.setPosition();
+  }
+
+  checkBoundaries(key) {
+    // TODO: Are these variables being created every time funciton run?
+    // Maybe better to set them as global?
+    var maxY = (sizes.canvasHeight - sizes.imageHeight) - sizes.arbitraryPlayerOffsetBottom;
+    var minX = sizes.imageWidth;
+    var maxX = sizes.canvasWidth - sizes.imageWidth;
+
+    if ((key === 'down') && (this.y < maxY)) {
+      return true;
+    }
+    if ((key === 'left') && (this.x >= minX)) {
+      return true;
+    }
+    if ((key === 'right') && (this.x < maxX)) {
+      return true;
+    }
+    if (key === 'up') {
+        return true;
+      }
+    return false;
+  }
+
+  checkRocks(playerRow, playerCol) {
+    for (const rock of rocks) {
+      if (checkObjectCollision(rock, playerRow, playerCol)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  handleInput(key) {
+    // Check boundaries to make sure move allowed
+    const playerRow = this.row,
+          playerCol = this.col;
+
+    if (this.checkBoundaries(key)) {
+      if (key === 'up') {
+        if (!this.checkRocks(playerRow - 1, playerCol)) {
+          if (this.y > sizes.rowHeight) {
+            this.y -= sizes.rowHeight;
+            this.row--;
+          } else {
+            game.nextLevel();
+            this.setPosition();
+          }
+        }
+      }
+      if (key === 'down') {
+        if (!this.checkRocks(playerRow + 1, playerCol)) {
+          this.y += sizes.rowHeight;
+          this.row++;
+        }
+      }
+      if (key === 'left') {
+        if (!this.checkRocks(playerRow, playerCol - 1)) {
+          this.x -= sizes.imageWidth;
+          this.col -= 1;
+        }
+      }
+      if (key === 'right') {
+        if (!this.checkRocks(playerRow, playerCol + 1)) {
+          this.x += sizes.imageWidth;
+          this.col += 1;
+        }
+      }
+      sounds.move.load();
+      sounds.move.play();
+    }
+  }
+
+  update() {}
+
+  render() {
+    ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
+  }
+}
+
+
+/*
+*
+* 7. Collision Detection
 *
 */
 
 function checkCollisions() {
   // Subtracts 1, because allEnemy array starts at 0, but the first enemy
   // row begins at 1
-  var enemyNum = player.playerRow - 1;
+  const enemyNum = player.row - 1;
 
-  if (allEnemies[enemyNum]) {
-    var rowEnemy = allEnemies[enemyNum];
-    var enemyStart = rowEnemy.x + enemyPadding;
-    var enemyEnd = rowEnemy.x + imageWidth - enemyPadding;
-    var playerStart = player.x + playerSidePadding;
-    var playerEnd = player.x + imageWidth - playerSidePadding;
+  for (const enemy of allEnemies) {
+    if (enemy.row === player.row) {
+      let enemyStart = enemy.x + sizes.enemyPadding;
+      let enemyEnd = enemy.x + sizes.imageWidth - sizes.enemyPadding;
+      var playerStart = player.x + sizes.playerSidePadding;
+      var playerEnd = player.x + sizes.imageWidth - sizes.playerSidePadding;
 
-    // If front or back corner of player is inside enemy rectangle
-    if ((playerStart > enemyStart) && (playerStart < enemyEnd) ||
-        (playerEnd > enemyStart) && (playerEnd < enemyEnd)) {
-      impactSound.play();
-      if (player.lives > 0) {
-        player.lives--;
-        player.playerSetPosition();
-        // return true;
-      } else {
-        loseSound.play();
-        player.playerReset();
+      // If front or back corner of player is inside enemy rectangle
+      if ((playerStart > enemyStart) && (playerStart < enemyEnd) ||
+          (playerEnd > enemyStart) && (playerEnd < enemyEnd)) {
+        sounds.impact.play();
+
+        if (player.lives > 0) {
+          player.lives--;
+          player.setPosition();
+          game.gameStatus = 'displayLivesRemaining';
+          // return true;
+        } else {
+          // TODO: Create losegame function
+          sounds.lose.play();
+          player.setPosition();
+          game.gameStatus = 'displayLoseScreen';
+        }
       }
     }
-    // return false;
+  }
+
+  // check for Gem collision, if so adds points and removes
+  for (const gem of gems) {
+    if (checkObjectCollision(gem, player.row, player.col)) {
+      let gemPosition = gems.indexOf(gem);
+      sounds.gem.load();
+      sounds.gem.play();
+      player.score += gem.score;
+      gems.splice(gemPosition, 1);
+    }
   }
 }
 
 /*
 *
-* Instantiate Objects
+* 8. Instantiate Objects
 *
 */
 
-var allEnemies = [];
+let rocks = [];
+let gems = [];
+
+const allEnemies = [];
 
 (function() {
-  for (var i = 0; i < 3; i++) {
-    allEnemies.push(new Enemy(i));
+  for (let i = 0; i < 3; i++) {
+    allEnemies.push(new Enemy(i + 1));
   }
 })();
 
 var player = new Player();
 
+/*
+*
+* 9. Event Listener
+*
+*/
+
 // This listens for key presses and sends the keys to your
 // Player.handleInput() method. You don't need to modify this.
+
 document.addEventListener('keyup', function(e) {
+  console.log('keyup fired');
   var allowedKeys = {};
 
-  if (Game.gameStatus === 0) {
-    allowedKeys = {
+  switch (game.gameStatus) {
+    case 'displayCharSelection':
+      allowedKeys = {
         37: 'left',
         39: 'right',
         13: 'enter'
-    };
-    characterSelect.handleInput(allowedKeys[e.keyCode]);
-  }
-  if (Game.gameStatus === 1) {
-    allowedKeys = {
+      };
+      characterSelect.handleInput(allowedKeys[e.keyCode]);
+      break;
+    case 'playGame':
+      allowedKeys = {
         37: 'left',
         38: 'up',
         39: 'right',
         40: 'down'
-    };
-    player.handleInput(allowedKeys[e.keyCode]);
+      };
+      player.handleInput(allowedKeys[e.keyCode]);
+      break;
+    case 'displayLivesRemaining':
+      displayLivesRemaining.handleInput(e);
+      break;
+    case 'displayLevel':
+      displayLevel.handleInput(e);
+      break;
+    case 'displayLoseScreen':
+      allowedKeys = {
+        37: 'left',
+        39: 'right',
+        13: 'enter'
+      };
+      loseScreen.handleInput(allowedKeys[e.keyCode]);
+      break;
   }
 });
+
+// Future game soundloop
+// sounds.gameLoop.addEventListener('keydown', function(e) {
+//   if (e.keyCode === 77) {
+//     console.log('m key pressed');
+//     if (sounds.gameLoop.playing) {
+//       sounds.gameLoop.pause();
+//     } else {
+//       sounds.gameLoop.play();
+//     }
+//   }
+// }, false);
+//
+// sounds.gameLoop.addEventListener('ended', function() {
+//   if (game.gameStatus === 'playGame') {
+//     this.currentTime = 0;
+//     this.play();
+//   }
+// }, false);
