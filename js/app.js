@@ -1,4 +1,5 @@
 /*jshint esversion: 6 */
+// 'use strict';
 
 /*
 *
@@ -8,7 +9,7 @@
 
 /****** Sizes Used ******/
 
-const sizes = {
+const SIZES = {
   canvasWidth: 505,
   canvasHeight: 606,
   rowHeight: 83,
@@ -83,26 +84,26 @@ function randomNum(start, end) {
 
 // Clears screen
 function clearScreen() {
-  ctx.clearRect(0, 0, sizes.canvasWidth, sizes.canvasHeight);
+  ctx.clearRect(0, 0, SIZES.canvasWidth, SIZES.canvasHeight);
 }
 
 // Clear screen, fill canvas with color
 function fillCanvas(color = "white") {
   clearScreen();
   ctx.fillStyle = color;
-  ctx.fillRect(0, 0, sizes.canvasWidth, sizes.canvasHeight);
+  ctx.fillRect(0, 0, SIZES.canvasWidth, SIZES.canvasHeight);
 }
 
 // Like fillCanvas, but doesn't clear screen first
 function transparentLayer(color = 'rgba(0, 0, 0, .25)') {
   ctx.fillStyle = color;
-  ctx.fillRect(0, sizes.canvasOffsetTop, sizes.canvasWidth, sizes.canvasHeight - 70);
+  ctx.fillRect(0, SIZES.canvasOffsetTop, SIZES.canvasWidth, SIZES.canvasHeight - 70);
 }
 
 // Draws rectangle in Center of screen. Used for messages
-function drawCenterRect(color = 'rgba(0, 0, 0, 0.5)', height = 200, width = sizes.canvasWidth) {
-  let rectX = sizes.centerRectHoriz(width);
-  let rectY = sizes.centerImage(height);
+function drawCenterRect(color = 'rgba(0, 0, 0, 0.5)', height = 200, width = SIZES.canvasWidth) {
+  let rectX = SIZES.centerRectHoriz(width);
+  let rectY = SIZES.centerImage(height);
   ctx.fillStyle = color;
   ctx.fillRect(rectX, rectY, width, height);
 }
@@ -144,12 +145,12 @@ class TextObject {
   // Returns the x value to center-align text
   centerText() {
     const textWidth = this.textWidth();
-    return (sizes.canvasWidth - textWidth) / 2;
+    return (SIZES.canvasWidth - textWidth) / 2;
   }
 
   // Vertically center text, takes height in px
   centerVertical(textHeight) {
-    return ((sizes.canvasHeight - textHeight) / 2) + (textHeight);
+    return ((SIZES.canvasHeight - textHeight) / 2) + (textHeight);
   }
 
   // Draws text to the canvas
@@ -238,10 +239,9 @@ game.changeStatus = function(nextStatus, seconds) {
     }, seconds * 1000);
 };
 
-// Clears rocks and gems
+// Clears gameObjects and gems
 game.resetObjects = function() {
-  rocks = [];
-  gems = [];
+  gameObjects = [];
 };
 
 // Upon level completion, updates score and sets next level configuration
@@ -256,43 +256,42 @@ game.nextLevel = function() {
       allEnemies.push(new Enemy(4));
       break;
     case 3:
-      gems.push(new Gem('green', 2, 2));
-      gems.push(new Gem('green', 2, 4));
-      gems.push(new Gem('green', 4, 3));
+      gameObjects.push(new Gem('green', 2, 2));
+      gameObjects.push(new Gem('green', 2, 4));
+      gameObjects.push(new Gem('green', 4, 3));
       break;
     case 4:
       this.resetObjects();
-      rocks.push(new Rock(1, 3));
-      rocks.push(new Rock(4, 2));
-      rocks.push(new Rock(4, 4));
-      gems.push(new Gem('orange', 1, 5));
-      gems.push(new Gem('green', 3, 2));
-      gems.push(new Gem('green', 3, 4));
+      gameObjects.push(new Rock(1, 3));
+      gameObjects.push(new Gem('orange', 1, 5));
+      gameObjects.push(new Gem('green', 3, 2));
+      gameObjects.push(new Gem('green', 3, 4));
+      gameObjects.push(new Rock(4, 2));
+      gameObjects.push(new Rock(4, 4));
       break;
     case 5:
       this.resetObjects();
-      rocks.push(new Rock(1, 1));
-      rocks.push(new Rock(1, 2));
-      rocks.push(new Rock(1, 4));
-      rocks.push(new Rock(1, 5));
-      rocks.push(new Rock(3, 1));
-      rocks.push(new Rock(3, 3));
-      rocks.push(new Rock(3, 5));
-      gems.push(new Gem('orange', 2, 1));
-      gems.push(new Gem('blue', 2, 5));
-      gems.push(new Gem('green', 4, 2));
-      gems.push(new Gem('green', 4, 4));
+      gameObjects.push(new Rock(1, 1));
+      gameObjects.push(new Rock(1, 2));
+      gameObjects.push(new Rock(1, 4));
+      gameObjects.push(new Rock(1, 5));
+      gameObjects.push(new Gem('orange', 2, 1));
+      gameObjects.push(new Gem('blue', 2, 5));
+      gameObjects.push(new Rock(3, 1));
+      gameObjects.push(new Rock(3, 3));
+      gameObjects.push(new Rock(3, 5));
+      gameObjects.push(new Gem('green', 4, 2));
+      gameObjects.push(new Gem('green', 4, 4));
       break;
     case 6:
       this.resetObjects();
-      rocks.push(new Rock(1, 3));
-      rocks.push(new Rock(2, 3));
-      rocks.push(new Rock(4, 1));
-      rocks.push(new Rock(4, 2));
-      rocks.push(new Rock(4, 4));
-      rocks.push(new Rock(4, 5));
-      gems.push(new Gem('orange', 1, 1));
-      gems.push(new Gem('blue', 2, 5));
+      gameObjects.push(new Rock(1, 3));
+      gameObjects.push(new Gem('orange', 1, 1));
+      gameObjects.push(new Rock(2, 3));
+      gameObjects.push(new Rock(4, 1));
+      gameObjects.push(new Rock(4, 2));
+      gameObjects.push(new Rock(4, 4));
+      gameObjects.push(new Rock(4, 5));
   }
 
   // After configuring level, resets enemies and shows level screen
@@ -373,7 +372,7 @@ var welcomeScreen = {
 const characterSelect = {
   // Position of where to draw selection border box
   boxX: 0,
-  boxY: sizes.centerImage(),
+  boxY: SIZES.centerImage(),
   // Index and name of currently selected char
   selectedCharIndex: 0,
   selectedCharName: 'Boy',
@@ -400,14 +399,14 @@ const characterSelect = {
       // Fetches sprite image
       var currentChar = Resources.get(character.sprite);
       // Draws image
-      ctx.drawImage(currentChar, index * sizes.imageWidth, sizes.centerImage());
+      ctx.drawImage(currentChar, index * SIZES.imageWidth, SIZES.centerImage());
     }
   },
 
   // Draws border around current character selection
   drawCharBorder() {
     // Border starts on char number * image width
-    var borderX = this.selectedCharIndex * sizes.imageWidth;
+    var borderX = this.selectedCharIndex * SIZES.imageWidth;
 
     // Moves border on the canvas side edges
     if (this.selectedCharIndex === 0) {
@@ -419,10 +418,10 @@ const characterSelect = {
 
     // Draws border rectangle, calls fn to write name underneath
     ctx.fillStyle = "red";
-    ctx.fillRect(borderX, sizes.centerImage(), sizes.imageWidth, sizes.imageHeight);
+    ctx.fillRect(borderX, SIZES.centerImage(), SIZES.imageWidth, SIZES.imageHeight);
     ctx.strokeStyle = "yellow";
     ctx.lineWidth = 2;
-    ctx.strokeRect(borderX, sizes.centerImage(), sizes.imageWidth, sizes.imageHeight);
+    ctx.strokeRect(borderX, SIZES.centerImage(), SIZES.imageWidth, SIZES.imageHeight);
     this.writeCharName(borderX);
   },
 
@@ -431,7 +430,7 @@ const characterSelect = {
     // Text = selected char's name
     this.charName.text = this.selectedCharName;
     // Arrow function that returns X value to center name under char
-    let centerBottomName = () => borderX + sizes.halfImageWidth() - (this.charName.textWidth() * 0.5);
+    let centerBottomName = () => borderX + SIZES.halfImageWidth() - (this.charName.textWidth() * 0.5);
 
     // Char name stylings
     switch (this.selectedCharName) {
@@ -452,7 +451,7 @@ const characterSelect = {
           break;
     }
     // Y value placed under the border
-    this.charName.y = sizes.centerImage() + sizes.imageHeight + 50;
+    this.charName.y = SIZES.centerImage() + SIZES.imageHeight + 50;
     // X value aligns name centered under char
     this.charName.x = centerBottomName();
     this.charName.drawText();
@@ -662,11 +661,11 @@ const loseScreen = {
 const topBar = {
   barHeight: 32,
   scoreX: 5,
-  livesX: sizes.canvasWidth - 125,
+  livesX: SIZES.canvasWidth - 125,
   textY: 30,
   // Clears the top before rendering
   clearTop() {
-    ctx.clearRect(0, 0, sizes.canvasWidth, this.barHeight);
+    ctx.clearRect(0, 0, SIZES.canvasWidth, this.barHeight);
   },
 
   // User regular text instead of TextObject for score and lives since they
@@ -703,16 +702,15 @@ function checkObjectCollision(object, playerRow, playerCol) {
   return false;
 }
 
-/****** Rock Generator *****/
-
-class Rock {
+class GameObject {
   constructor(row, column) {
-    this.sprite = 'images/Rock.png';
+    this.sprite = '';
+    this.type = '';
     this.row = row;
     this.col = column;
     // sets X and Y values based on col/row that start at 1
-    this.x = (this.col - 1) * sizes.imageWidth;
-    this.y = sizes.canvasOffsetTop + ((this.row - 1) * sizes.rowHeight);
+    this.x = (this.col - 1) * SIZES.imageWidth;
+    this.y = SIZES.canvasOffsetTop + ((this.row - 1) * SIZES.rowHeight);
   }
 
   render() {
@@ -720,9 +718,21 @@ class Rock {
   }
 }
 
+/****** Rock Generator *****/
+
+class Rock extends GameObject {
+  constructor(row, column) {
+    super(row, column);
+    this.type = 'rock';
+    this.sprite = 'images/Rock.png';
+  }
+}
+
 /****** Gems *******/
-class Gem {
-  constructor(color, row, col) {
+class Gem extends GameObject{
+  constructor(color, row, column) {
+    super(row, column);
+    this.type = 'gem';
     this.color = color;
 
     switch (color) {
@@ -738,17 +748,7 @@ class Gem {
         this.sprite = 'images/gem-orange.png';
         this.score = 50;
         break;
-      }
-
-    this.row = row;
-    this.col = col;
-    // sets X and Y values based on col/row that start at 1
-    this.x = (this.col - 1) * sizes.imageWidth;
-    this.y = sizes.canvasOffsetTop + ((this.row - 1) * sizes.rowHeight);
-  }
-
-  render() {
-    ctx.drawImage(Resources.get(this.sprite), this.x, this.y);
+    }
   }
 }
 
@@ -768,11 +768,11 @@ class Enemy {
   }
 
   setEnemyX() {
-    this.x = -sizes.imageWidth;
+    this.x = -SIZES.imageWidth;
   }
 
   setEnemyY() {
-    this.y = sizes.canvasOffsetTop + ((this.row) * sizes.rowHeight);
+    this.y = SIZES.canvasOffsetTop + ((this.row) * SIZES.rowHeight);
   }
 
   generateSpeed() {
@@ -783,7 +783,7 @@ class Enemy {
     // Sets x to speed * dt
     this.x += this.speed * dt;
     // When enemy reaches end, reset position and change speed
-    if (this.x > sizes.canvasWidth + sizes.imageWidth) {
+    if (this.x > SIZES.canvasWidth + SIZES.imageWidth) {
       this.setEnemyX();
       this.generateSpeed();
     }
@@ -812,8 +812,8 @@ class Player {
   setPosition() {
     this.row = 5;
     this.col = 3;
-    this.x = (sizes.canvasWidth - sizes.imageWidth) / 2;
-    this.y = (sizes.canvasHeight - sizes.imageHeight) - sizes.arbitraryPlayerOffsetBottom;
+    this.x = (SIZES.canvasWidth - SIZES.imageWidth) / 2;
+    this.y = (SIZES.canvasHeight - SIZES.imageHeight) - SIZES.arbitraryPlayerOffsetBottom;
   }
 
   reset() {
@@ -825,9 +825,9 @@ class Player {
   checkBoundaries(key) {
     // TODO: Are these variables being created every time funciton run?
     // Maybe better to set them as global?
-    var maxY = (sizes.canvasHeight - sizes.imageHeight) - sizes.arbitraryPlayerOffsetBottom;
-    var minX = sizes.imageWidth;
-    var maxX = sizes.canvasWidth - sizes.imageWidth;
+    var maxY = (SIZES.canvasHeight - SIZES.imageHeight) - SIZES.arbitraryPlayerOffsetBottom;
+    var minX = SIZES.imageWidth;
+    var maxX = SIZES.canvasWidth - SIZES.imageWidth;
 
     if ((key === 'down') && (this.y < maxY)) {
       return true;
@@ -844,9 +844,10 @@ class Player {
     return false;
   }
 
-  checkRocks(playerRow, playerCol) {
-    for (const rock of rocks) {
-      if (checkObjectCollision(rock, playerRow, playerCol)) {
+  checkgameObjects(playerRow, playerCol) {
+    for (const object of gameObjects) {
+      if ((object.type === 'rock') &&
+          (checkObjectCollision(object, playerRow, playerCol))) {
         return true;
       }
     }
@@ -860,9 +861,9 @@ class Player {
 
     if (this.checkBoundaries(key)) {
       if (key === 'up') {
-        if (!this.checkRocks(playerRow - 1, playerCol)) {
-          if (this.y > sizes.rowHeight) {
-            this.y -= sizes.rowHeight;
+        if (!this.checkgameObjects(playerRow - 1, playerCol)) {
+          if (this.y > SIZES.rowHeight) {
+            this.y -= SIZES.rowHeight;
             this.row--;
           } else {
             game.nextLevel();
@@ -871,20 +872,20 @@ class Player {
         }
       }
       if (key === 'down') {
-        if (!this.checkRocks(playerRow + 1, playerCol)) {
-          this.y += sizes.rowHeight;
+        if (!this.checkgameObjects(playerRow + 1, playerCol)) {
+          this.y += SIZES.rowHeight;
           this.row++;
         }
       }
       if (key === 'left') {
-        if (!this.checkRocks(playerRow, playerCol - 1)) {
-          this.x -= sizes.imageWidth;
+        if (!this.checkgameObjects(playerRow, playerCol - 1)) {
+          this.x -= SIZES.imageWidth;
           this.col -= 1;
         }
       }
       if (key === 'right') {
-        if (!this.checkRocks(playerRow, playerCol + 1)) {
-          this.x += sizes.imageWidth;
+        if (!this.checkgameObjects(playerRow, playerCol + 1)) {
+          this.x += SIZES.imageWidth;
           this.col += 1;
         }
       }
@@ -914,10 +915,10 @@ function checkCollisions() {
 
   for (const enemy of allEnemies) {
     if (enemy.row === player.row) {
-      let enemyStart = enemy.x + sizes.enemyPadding;
-      let enemyEnd = enemy.x + sizes.imageWidth - sizes.enemyPadding;
-      var playerStart = player.x + sizes.playerSidePadding;
-      var playerEnd = player.x + sizes.imageWidth - sizes.playerSidePadding;
+      let enemyStart = enemy.x + SIZES.enemyPadding;
+      let enemyEnd = enemy.x + SIZES.imageWidth - SIZES.enemyPadding;
+      var playerStart = player.x + SIZES.playerSidePadding;
+      var playerEnd = player.x + SIZES.imageWidth - SIZES.playerSidePadding;
 
       // If front or back corner of player is inside enemy rectangle
       if ((playerStart > enemyStart) && (playerStart < enemyEnd) ||
@@ -940,13 +941,14 @@ function checkCollisions() {
   }
 
   // check for Gem collision, if so adds points and removes
-  for (const gem of gems) {
-    if (checkObjectCollision(gem, player.row, player.col)) {
-      let gemPosition = gems.indexOf(gem);
+  for (const object of gameObjects) {
+    if ((object.type === 'gem') &&
+        (checkObjectCollision(object, player.row, player.col))) {
+      let gemPosition = gameObjects.indexOf(object);
       sounds.gem.load();
       sounds.gem.play();
-      player.score += gem.score;
-      gems.splice(gemPosition, 1);
+      player.score += object.score;
+      gameObjects.splice(gemPosition, 1);
     }
   }
 }
@@ -957,9 +959,7 @@ function checkCollisions() {
 *
 */
 
-let rocks = [];
-let gems = [];
-
+let gameObjects = [];
 const allEnemies = [];
 
 (function() {
@@ -980,7 +980,6 @@ var player = new Player();
 // Player.handleInput() method. You don't need to modify this.
 
 document.addEventListener('keyup', function(e) {
-  console.log('keyup fired');
   var allowedKeys = {};
 
   switch (game.gameStatus) {
@@ -1021,7 +1020,6 @@ document.addEventListener('keyup', function(e) {
 // Future game soundloop
 // sounds.gameLoop.addEventListener('keydown', function(e) {
 //   if (e.keyCode === 77) {
-//     console.log('m key pressed');
 //     if (sounds.gameLoop.playing) {
 //       sounds.gameLoop.pause();
 //     } else {

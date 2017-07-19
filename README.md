@@ -1,9 +1,10 @@
 <h1><center><b><span style="color:green"> FroggerJS </span></b> </center></h1>
 
-<center><h3><span style="color:green"> By: Learnathoner </span><h3></center>
+<center><h3><span style="color:green"> By: Learnathoner </span></h3></center>
 
 ![alt text](images/Screenshot.png "Frogger in-game footage")
 
+### To start the game, click [here](https://learnathoner.github.io/frontend-nanodegree-arcade-game/)
 
 ## **<span style="color:blue">Gameplay Guide</span>**
 

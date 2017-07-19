@@ -80,7 +80,7 @@ var Engine = (function(global) {
 
   // Calls entity update, checks for collisions
   function update(dt) {
-      ctx.clearRect(0, 0, sizes.canvasWidth, sizes.canvasHeight);
+      clearScreen();
       updateEntities(dt);
       checkCollisions();
   }
@@ -130,18 +130,8 @@ var Engine = (function(global) {
 
     // Hack to render gems and rocks by row order without overlap
     // TODO: Combine rocks and gems into single array
-    for (let row = 1; row < 5; row++) {
-      gems.forEach(function(gem) {
-        if (gem.row === row) {
-          gem.render();
-        }
-      });
-
-      rocks.forEach(function(rock) {
-        if (rock.row === row) {
-          rock.render();
-        }
-      });
+    for (const object of gameObjects) {
+      object.render();
     }
 
     // Renders all enemies
